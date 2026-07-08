@@ -37,12 +37,12 @@ public static class Scenes
 
     public static Scene Cantilever()
     {
-        var rod = Rod.Create(Line(60, new Vec3(-0.5, 0.9, 0), new Vec3(0.7, 0.9, 0)));
-        rod.MassPerNode = 0.004;
-        rod.BendStiffness = 6e-3;
-        rod.TwistStiffness = 4e-3;
+        var rod = Rod.Create(Line(25, new Vec3(-0.6, 0.9, 0), new Vec3(0.6, 0.9, 0)));
+        rod.MassPerNode = 0.0096;     // 240 g total: q = 1.96 N/m
+        rod.BendStiffness = 2.0;      // tip deflection ~21% of L: clearly a beam, clearly sagging
+        rod.TwistStiffness = 1.5;
         rod.Damping = 0.8;
-        rod.Radius = 0.014;
+        rod.Radius = 0.016;
         rod.InitRestState();
         rod.ClampStart();
         return new Scene
@@ -50,10 +50,12 @@ public static class Scenes
             Name = "1. Cantilever",
             Blurb = "Clamped beam under gravity. Left/Right scales EI; watch the sag respond.",
             Rod = rod,
+            SubstepDt = 1.2e-4,       // 3x explicit-stability margin at EI=2; adaptive dt covers EI up to 8
             ParamName = "bend stiffness EI",
-            Param = rod.BendStiffness, ParamMin = 5e-4, ParamMax = 5e-2, ParamStep = 0,
+            Param = rod.BendStiffness, ParamMin = 0.1, ParamMax = 8.0, ParamStep = 0,
             Driver = (r, t, dt, p) => r.BendStiffness = p,
-            CameraTarget = new Vec3(0.1, 0.6, 0),
+            CameraTarget = new Vec3(0, 0.65, 0),
+            CameraDistance = 2.5,
         };
     }
 
@@ -68,6 +70,7 @@ public static class Scenes
         rod.TwistStiffness = 2e-3;
         rod.Damping = 1.2;
         rod.Radius = 0.012;
+        rod.Gravity = Vec3.Zero; // buckling is a compression bifurcation: weight must not dominate
         rod.InitRestState();
         // tiny out-of-plane seed so the bifurcation direction is not degenerate
         for (int i = 0; i < n; i++)

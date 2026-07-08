@@ -20,6 +20,7 @@ internal static class App
     private static DerSolver _solver = null!;
     private static int _sceneIndex;
     private static double _simTime;
+    private static double _dt0, _ei0, _gj0; // scene-load baselines for the adaptive substep
     private static bool _paused;
     private static bool _wireframe;
     private static bool _showHelp = true;
@@ -69,11 +70,15 @@ internal static class App
             HandleInput(window, camera);
 
             // ---- fixed-dt substepping with a hard per-frame budget ----
+            // The explicit integrator's stable step scales as 1/sqrt(stiffness): when the
+            // user raises EI or GJ above the scene baseline, shrink the substep to match.
+            double stiffRatio = Math.Max(1.0, Math.Max(
+                _scene.Rod.BendStiffness / _ei0, _scene.Rod.TwistStiffness / _gj0));
+            double dt = Math.Max(_dt0 / Math.Sqrt(stiffRatio), _dt0 / 8.0);
             substepsThisFrame = 0;
             if (!_paused)
             {
                 accumulator += frameDt;
-                double dt = _scene.SubstepDt;
                 int maxSteps = (int)(0.030 / dt); // never spend more than ~30 ms of sim per frame
                 while (accumulator >= dt && substepsThisFrame < maxSteps)
                 {
@@ -86,6 +91,7 @@ internal static class App
                 simLagging = accumulator >= dt;
                 if (simLagging) accumulator = 0; // drop the backlog: slow-mo instead of spiral of death
             }
+            _scene.SubstepDt = dt; // reflected in the HUD and title
 
             // ---- render ----
             int w = Math.Max(window.Width, 1), h = Math.Max(window.Height, 1);
@@ -174,6 +180,9 @@ internal static class App
         };
         _simTime = 0;
         _paused = false;
+        _dt0 = _scene.SubstepDt;
+        _ei0 = _scene.Rod.BendStiffness;
+        _gj0 = _scene.Rod.TwistStiffness;
         cam.Target = ToNumerics(_scene.CameraTarget);
         cam.Distance = (float)_scene.CameraDistance;
     }
